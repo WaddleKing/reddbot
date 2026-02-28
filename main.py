@@ -617,19 +617,33 @@ def generate_reddit_comment(api_key, prompt_file, system_file, subreddit, title,
     formatted_prompt = template.format(subreddit=subreddit, title=title, text=text)
 
     # Groq uses a 'messages' list rather than 'contents'
-    messages = [
-        {
-            "role": "system",
-            "content": system
-        },
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": formatted_prompt},
-                {"type": "image_url", "image_url": {"url": image_url}}
-            ]
-        }
-    ]
+    if image_url:
+        messages = [
+            {
+                "role": "system",
+                "content": system
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": formatted_prompt},
+                    {"type": "image_url", "image_url": {"url": image_url}}
+                ]
+            }
+        ]
+    else:
+        messages = [
+            {
+                "role": "system",
+                "content": system
+            },
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": formatted_prompt}
+                ]
+            }
+        ]
 
     # --- RETRY LOGIC ---
     for attempt in range(retries):
