@@ -2,7 +2,7 @@
 autonomous reddit bot using gemini
 
 step 1:
-install requirements
+install requirements in a venv
 
 step 2:
 playwright install firefox
