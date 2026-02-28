@@ -442,7 +442,7 @@ class Redditbot:
         while True:
             try:
                 # We use a slightly more generic rising URL to avoid redirect loops
-                target_url = "https://www.reddit.com/rising/?feed=home"
+                target_url = "https://www.reddit.com/rising/?feed=home&feedViewType=compactView"
                 # Using domcontentloaded is faster and more stable for Firefox
                 response = self._page.goto(target_url, wait_until="domcontentloaded", timeout=30000)
                 
