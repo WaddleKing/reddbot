@@ -652,9 +652,9 @@ def generate_reddit_comment(api_key, prompt_file, system_file, subreddit, title,
                 # Llama 3.2 11B is the current high-volume vision king on Groq
                 model="meta-llama/llama-4-scout-17b-16e-instruct", 
                 messages=messages,
-                temperature=0.75,
+                temperature=0.95,
                 max_tokens=150, # Keep it small to prevent rambling
-                top_p=1,
+                top_p=0.9,
                 stream=False,
                 stop=["\n"] # Hard cut-offs for rambling
             )
