@@ -22,8 +22,8 @@ except ImportError:
 # ─────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────
-USERNAME    = api_key = os.getenv("USERNAME")
-PASSWORD    = api_key = os.getenv("PASSWORD")
+USERNAME    = api_key = os.getenv("REDDIT_USERNAME")
+PASSWORD    = api_key = os.getenv("REDDIT_PASSWORD")
 COOKIE_FILE = "reddit_cookies.json"
 
 HEADERS = {
