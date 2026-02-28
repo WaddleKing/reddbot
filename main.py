@@ -437,119 +437,122 @@ class Redditbot:
 
     def get_random_home_post(self):
         page = self._page
-        print("[bot] Navigating to home page...")
         
-        while True:
-            try:
-                # We use a slightly more generic rising URL to avoid redirect loops
-                target_url = "https://www.reddit.com/rising/?feed=home&feedViewType=compactView"
-                # Using domcontentloaded is faster and more stable for Firefox
-                response = self._page.goto(target_url, wait_until="domcontentloaded", timeout=30000)
-                
-                # Check if the response was successful (status 200-299)
-                if response and response.ok:
-                    break
-                else:
-                    print(f"[bot] Page loaded but returned status {response.status if response else 'None'}. Retrying...")
-            except Exception as e:
-                print(f"[bot] Navigation failed ({type(e).__name__}). Retrying in 5s...")
-                self._human_delay(4, 6) # Give the network a breather
-        
-        self._human_delay(2, 3)
-
-        for _ in range(3):
-            page.mouse.wheel(0, 2000)
-            self._human_delay(0.4, 0.6)
-
-        try:
-            seen_urls = set()
-            try:
-                with open("log.txt", "r") as f:
-                    seen_urls = {line.strip() for line in f if line.strip()}
-            except FileNotFoundError:
-                print("[bot] log.txt not found, starting fresh.")
-
-            post_locator = page.locator('shreddit-post:not([ad-id])')
-            post_count = post_locator.count()
-            print(f"[post count] total posts loaded: {post_count}")
-
-            if post_count == 0:
-                print("[bot] No posts found.")
-                return None
-
-            indices = list(range(post_count))
-            random.shuffle(indices)
+        while True:  # Outer loop: keep trying until we successfully return post_data
+            print("[bot] Navigating to home page...")
             
-            target_post = None
-            permalink = None
-            post_title = None
-            subreddit_name = None # Placeholder for the sub name
-
-            for idx in indices:
-                temp_post = post_locator.nth(idx)
-                
-                p_type = temp_post.get_attribute('post-type')
-                domain = temp_post.get_attribute('domain') or ""
-                has_video_player = temp_post.locator('shreddit-player-2, video, .video-player-wrapper').count() > 0
-                
-                if p_type == "video" or "v.redd.it" in domain or has_video_player:
-                    continue
-
-                temp_permalink = temp_post.get_attribute('permalink')
-                if temp_permalink and not temp_permalink.startswith('http'):
-                    temp_permalink = f"https://www.reddit.com{temp_permalink}"
-                
-                if temp_permalink not in seen_urls:
-                    target_post = temp_post
-                    permalink = temp_permalink
-                    post_title = target_post.get_attribute('post-title')
-                    # EXTRACTION: Get the subreddit name (e.g., "r/cats")
-                    subreddit_name = target_post.get_attribute('subreddit-prefixed-name')
-                    break
-            
-            if not target_post:
-                print("[bot] No new non-video posts found.")
-                return None
-
-            print(f"[bot] Selected: {post_title} from {subreddit_name}")
-            
-            self._goto(permalink)
-            self._human_delay(1, 2)
-
-            post_data = {
-                "title": post_title,
-                "url": permalink,
-                "subreddit": subreddit_name, # Added the key here
-                "text": "",
-                "image_url": None,
-                "image_path": None,
-                "is_gallery": "/gallery/" in permalink
-            }
-
-            content_container = page.locator('div[id$="-post-rtjson-content"]').first
-            if content_container.count() > 0:
-                paragraphs = content_container.locator('p').all()
-                text_parts = [p.inner_text().strip() for p in paragraphs]
-                post_data["text"] = "\n".join([t for t in text_parts if t and "sh.reddit.com" not in t])
-
-            img_locator = page.locator('shreddit-post img[src^="https://preview.redd.it"], figure img').first
-            if img_locator.count() > 0:
-                img_url = img_locator.get_attribute('src')
-                post_data["image_url"] = img_url
+            # 1. Navigation Loop (Internal)
+            while True:
                 try:
-                    res = requests.get(img_url, stream=True, timeout=10)
-                    if res.status_code == 200:
-                        with open("post_image.jpg", "wb") as f:
-                            for chunk in res.iter_content(1024): f.write(chunk)
-                        post_data["image_path"] = "post_image.jpg"
-                except:
+                    target_url = "https://www.reddit.com/rising/?feed=home&feedViewType=compactView"
+                    response = self._page.goto(target_url, wait_until="domcontentloaded", timeout=30000)
+                    
+                    if response and response.ok:
+                        break
+                    else:
+                        print(f"[bot] Status {response.status if response else 'None'}. Retrying...")
+                except Exception as e:
+                    print(f"[bot] Navigation failed ({type(e).__name__}). Retrying in 5s...")
+                    self._human_delay(4, 6)
+            
+            self._human_delay(2, 3)
+
+            # 2. Load more posts
+            for _ in range(3):
+                page.mouse.wheel(0, 2000)
+                self._human_delay(0.4, 0.6)
+
+            try:
+                # 3. Load seen URLs
+                seen_urls = set()
+                try:
+                    with open("log.txt", "r") as f:
+                        seen_urls = {line.strip() for line in f if line.strip()}
+                except FileNotFoundError:
                     pass
 
-            return post_data
+                post_locator = page.locator('shreddit-post:not([ad-id])')
+                post_count = post_locator.count()
+                print(f"[post count] total posts loaded: {post_count}")
 
-        except Exception as e:
-            print(f"[bot] Error: {e}")
-            return None
+                if post_count == 0:
+                    print("[bot] No posts found on page. Restarting...")
+                    continue # Back to the start of the 'while True'
+
+                indices = list(range(post_count))
+                random.shuffle(indices)
+                
+                target_post = None
+                permalink = None
+                post_title = None
+                subreddit_name = None
+
+                for idx in indices:
+                    temp_post = post_locator.nth(idx)
+                    
+                    p_type = temp_post.get_attribute('post-type')
+                    domain = temp_post.get_attribute('domain') or ""
+                    has_video_player = temp_post.locator('shreddit-player-2, video, .video-player-wrapper').count() > 0
+                    
+                    if p_type == "video" or "v.redd.it" in domain or has_video_player:
+                        continue
+
+                    temp_permalink = temp_post.get_attribute('permalink')
+                    if temp_permalink and not temp_permalink.startswith('http'):
+                        temp_permalink = f"https://www.reddit.com{temp_permalink}"
+                    
+                    if temp_permalink not in seen_urls:
+                        target_post = temp_post
+                        permalink = temp_permalink
+                        post_title = target_post.get_attribute('post-title')
+                        subreddit_name = target_post.get_attribute('subreddit-prefixed-name')
+                        break
+                
+                if not target_post:
+                    print("[bot] No new/valid posts in this batch. Refreshing...")
+                    continue # Restart the search
+
+                # 4. Success! Proceed to extraction
+                print(f"[bot] Selected: {post_title} from {subreddit_name}")
+                self._goto(permalink)
+                self._human_delay(1, 2)
+
+                post_data = {
+                    "title": post_title,
+                    "url": permalink,
+                    "subreddit": subreddit_name,
+                    "text": "",
+                    "image_url": None,
+                    "image_path": None,
+                    "is_gallery": "/gallery/" in permalink
+                }
+
+                # Extraction logic
+                content_container = page.locator('div[id$="-post-rtjson-content"]').first
+                if content_container.count() > 0:
+                    paragraphs = content_container.locator('p').all()
+                    text_parts = [p.inner_text().strip() for p in paragraphs]
+                    post_data["text"] = "\n".join([t for t in text_parts if t and "sh.reddit.com" not in t])
+
+                img_locator = page.locator('shreddit-post img[src^="https://preview.redd.it"], figure img').first
+                if img_locator.count() > 0:
+                    img_url = img_locator.get_attribute('src')
+                    post_data["image_url"] = img_url
+                    try:
+                        res = requests.get(img_url, stream=True, timeout=10)
+                        if res.status_code == 200:
+                            with open("post_image.jpg", "wb") as f:
+                                for chunk in res.iter_content(1024): f.write(chunk)
+                            post_data["image_path"] = "post_image.jpg"
+                    except:
+                        pass
+
+                return post_data # The only way out of the loop
+
+            except Exception as e:
+                print(f"[bot] Error during process: {e}. Retrying from scratch...")
+                self._human_delay(2, 4)
+                # Loop continues...
 
 
 # def generate_reddit_comment(api_key, prompt_file, subreddit, title, text, image_path, retries=5):
