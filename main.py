@@ -6,8 +6,8 @@ import requests
 import PIL.Image
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+# from google import genai
+# from google.genai import types
 from groq import Groq
 
 load_dotenv()
@@ -600,12 +600,15 @@ class Redditbot:
 
 
 
-def generate_reddit_comment(api_key, prompt_file, subreddit, title, text, image_url, retries=5):
+def generate_reddit_comment(api_key, prompt_file, system_file, subreddit, title, text, image_url, retries=5):
     # Initialize the Groq client
     client = Groq(api_key=api_key)
     
     with open(prompt_file, 'r') as f:
         template = f.read()
+
+    with open(system_file, 'r') as f:
+        system = f.read()
 
     # Prepare the formatted prompt
     formatted_prompt = template.format(subreddit=subreddit, title=title, text=text)
@@ -614,7 +617,7 @@ def generate_reddit_comment(api_key, prompt_file, subreddit, title, text, image_
     messages = [
         {
             "role": "system",
-            "content": "you are a redditor. write exactly one paragraph. no double line breaks. lowercase only. no formal punctuation."
+            "content": system
         },
         {
             "role": "user",
@@ -632,7 +635,7 @@ def generate_reddit_comment(api_key, prompt_file, subreddit, title, text, image_
                 # Llama 3.2 11B is the current high-volume vision king on Groq
                 model="meta-llama/llama-4-scout-17b-16e-instruct", 
                 messages=messages,
-                temperature=0.8,
+                temperature=0.75,
                 max_tokens=150, # Keep it small to prevent rambling
                 top_p=1,
                 stream=False,
@@ -673,6 +676,7 @@ if __name__ == "__main__":
             comment = generate_reddit_comment(
                 api_key=os.getenv("GROQ_API_KEY"),
                 prompt_file="prompt.txt",
+                system_file="system.txt",
                 subreddit=post_data['subreddit'],
                 title=post_data['title'],
                 text=post_data['text'],
