@@ -8,6 +8,7 @@ from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeo
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from groq import Groq
 
 load_dotenv()
 
@@ -447,7 +448,6 @@ class Redditbot:
                 
                 # Check if the response was successful (status 200-299)
                 if response and response.ok:
-                    print("[bot] Successfully reached Reddit.")
                     break
                 else:
                     print(f"[bot] Page loaded but returned status {response.status if response else 'None'}. Retrying...")
@@ -552,51 +552,106 @@ class Redditbot:
             return None
 
 
-def generate_reddit_comment(api_key, prompt_file, subreddit, title, text, image_path, retries=5):
-    client = genai.Client(api_key=api_key)
+# def generate_reddit_comment(api_key, prompt_file, subreddit, title, text, image_path, retries=5):
+#     client = genai.Client(api_key=api_key)
+    
+#     with open(prompt_file, 'r') as f:
+#         template = f.read()
+
+#     config = types.GenerateContentConfig(
+#         system_instruction="""You are a Redditor. Write exactly ONE paragraph. 
+#         Never use double line breaks. Be concise but descriptive.""",
+#         temperature=0.8,
+#         max_output_tokens=1024,
+#         # This is the 'kill switch' for extra paragraphs
+#         stop_sequences=["\n\n"], 
+#         # thinking_config={'include_thoughts': False, 'thinking_level': 'low'} 
+#     )
+
+#     formatted_prompt = template.format(subreddit=subreddit, title=title, text=text)
+#     if image_path:
+#         contents = [formatted_prompt, PIL.Image.open(image_path)]
+#     else:
+#         contents = [formatted_prompt]
+
+#     # --- RETRY LOGIC ---
+#     for attempt in range(retries):
+#         try:
+#             response = client.models.generate_content(
+#                 model="gemini-2.5-flash-lite", 
+#                 contents=contents,
+#                 config=config
+#             )
+#             if "RESOURCE_EXHAUSTED" not in response.text:
+#                 return response.text.lower()
+            
+#         except genai.errors.ServerError as e:
+#             if "503" in str(e) and attempt < retries - 1:
+#                 wait_time = (2 ** attempt) # 1s, 2s, 4s, 8s...
+#                 print(f"Server overloaded. Retrying in {wait_time}s...")
+#                 time.sleep(wait_time)
+#                 continue
+#             else:
+#                 print(f"Final failure after {retries} attempts: {e}")
+#                 return ""
+#         except Exception as e:
+#             print(f"Non-server error: {e}")
+#             return ""
+
+
+
+def generate_reddit_comment(api_key, prompt_file, subreddit, title, text, image_url, retries=5):
+    # Initialize the Groq client
+    client = Groq(api_key=api_key)
     
     with open(prompt_file, 'r') as f:
         template = f.read()
 
-    config = types.GenerateContentConfig(
-        system_instruction="""You are a Redditor. Write exactly ONE paragraph. 
-        Never use double line breaks. Be concise but descriptive.""",
-        temperature=0.8,
-        max_output_tokens=1024,
-        # This is the 'kill switch' for extra paragraphs
-        stop_sequences=["\n\n"], 
-        # thinking_config={'include_thoughts': False, 'thinking_level': 'low'} 
-    )
-
+    # Prepare the formatted prompt
     formatted_prompt = template.format(subreddit=subreddit, title=title, text=text)
-    if image_path:
-        contents = [formatted_prompt, PIL.Image.open(image_path)]
-    else:
-        contents = [formatted_prompt]
+
+    # Groq uses a 'messages' list rather than 'contents'
+    messages = [
+        {
+            "role": "system",
+            "content": "you are a redditor. write exactly one paragraph. no double line breaks. lowercase only. no formal punctuation."
+        },
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": formatted_prompt},
+                {"type": "image_url", "image_url": {"url": image_url}}
+            ]
+        }
+    ]
 
     # --- RETRY LOGIC ---
     for attempt in range(retries):
         try:
-            response = client.models.generate_content(
-                model="gemini-2.5-flash-lite", 
-                contents=contents,
-                config=config
+            completion = client.chat.completions.create(
+                # Llama 3.2 11B is the current high-volume vision king on Groq
+                model="meta-llama/llama-4-scout-17b-16e-instruct", 
+                messages=messages,
+                temperature=0.8,
+                max_tokens=150, # Keep it small to prevent rambling
+                top_p=1,
+                stream=False,
+                stop=["\n"] # Hard cut-offs for rambling
             )
-            if "RESOURCE_EXHAUSTED" not in response.text:
-                return response.text.lower()
             
-        except genai.errors.ServerError as e:
-            if "503" in str(e) and attempt < retries - 1:
-                wait_time = (2 ** attempt) # 1s, 2s, 4s, 8s...
-                print(f"Server overloaded. Retrying in {wait_time}s...")
+            comment = completion.choices[0].message.content
+            return comment.lower().strip()
+            
+        except Exception as e:
+            # Groq returns specific 429 for Rate Limits and 503 for Overload
+            if ("429" in str(e) or "503" in str(e)) and attempt < retries - 1:
+                wait_time = (2 ** attempt)
+                print(f"Groq busy or limit hit. Retrying in {wait_time}s...")
                 time.sleep(wait_time)
                 continue
             else:
-                print(f"Final failure after {retries} attempts: {e}")
+                print(f"Groq error: {e}")
                 return ""
-        except Exception as e:
-            print(f"Non-server error: {e}")
-            return ""
 
 # --- Usage ---
 # print(generate_reddit_comment("API_KEY", "prompt.txt", "Title here", "Body here", "pic.jpg"))
@@ -616,12 +671,12 @@ if __name__ == "__main__":
         while True:
             post_data = bot.get_random_home_post()
             comment = generate_reddit_comment(
-                api_key=os.getenv("GEMINI_API_KEY"),
+                api_key=os.getenv("GROQ_API_KEY"),
                 prompt_file="prompt.txt",
                 subreddit=post_data['subreddit'],
                 title=post_data['title'],
                 text=post_data['text'],
-                image_path=post_data['image_path']
+                image_url=post_data['image_url']
             )
             print("[comment]",comment)
             if comment != "":
