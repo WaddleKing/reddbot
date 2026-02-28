@@ -1,0 +1,6 @@
+playwright
+playwright-stealth
+requests
+python-dotenv
+google-genai
+Pillow

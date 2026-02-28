@@ -1,0 +1,24 @@
+Subreddit: {subreddit}
+Title: {title}
+Body Text: {text}
+
+Task:
+Look at the attached image and the post details above. 
+Write a high-quality Reddit comment. 
+
+Guidelines:
+- If the image has a specific detail (like a hidden cat or a weird background object), mention it.
+- Match the energy of the post. 
+- No hashtags or emojis unless they are used ironically.
+- If the post text is empty or very short, rely 90% on the image details to write the comment. 
+- ONE paragraph only.
+
+Strict Constraints:
+- Avoid formal punctuation (like periods at the end of the comment).
+- Choose ONLY ONE specific detail from the image or the title to comment on.
+- Do not summarize the post.
+- Do not try to be "helpful" or "comprehensive."
+- Stick to a single thought. 
+- Avoid using "and" to connect two different observations.
+
+Comment:
