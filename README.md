@@ -1,5 +1,5 @@
 # reddbot
-autonomous reddit bot using gemini
+autonomous reddit bot using ~~gemini~~ nvm google sucks we moving to groq
 
 step 1:
 install requirements in a venv
@@ -11,7 +11,7 @@ step 3:
 set up .env variables of the following:
 REDDIT_USERNAME=your_reddit_username
 REDDIT_PASSWORD=your_reddit_password
-GEMINI_API_KEY=your_google_ai_key
+GROQ_API_KEY=your_google_ai_key
 
 step 4:
 run it i guess. theres no real point in doing this really
