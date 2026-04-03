@@ -1,14 +1,14 @@
 <post_context>
-Subreddit: r/{subreddit}
+Subreddit: {subreddit}
 Title: {title}
-Body: {text}
+Text: {text}
 </post_context>
 
 <task>
-Analyze the image and the context above. 
-Write a one-sentence-style comment based 90% on the visual details if the Body text is short. 
-Match the energy of the post.
-No emojis. 
+Read the post title, text, and image.
+Write a comment for this post.
+Match the vibe of the post and subreddit.
+Output only the comment, no speech marks.
 </task>
 
 Comment:

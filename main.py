@@ -19,13 +19,18 @@ except ImportError:
     HAS_STEALTH = False
     print("[Warning] playwright-stealth not installed. Run: pip install playwright-stealth")
 
+for i in range(5):
+    print(i,os.getenv("REDDIT_USERNAME"+str(i)))
+
+user_number = input()
+
 
 # ─────────────────────────────────────────────
 # CONFIG
 # ─────────────────────────────────────────────
-USERNAME    = api_key = os.getenv("REDDIT_USERNAME")
-PASSWORD    = api_key = os.getenv("REDDIT_PASSWORD")
-COOKIE_FILE = "reddit_cookies.json"
+USERNAME = os.getenv("REDDIT_USERNAME"+str(user_number))
+PASSWORD = os.getenv("REDDIT_PASSWORD"+str(user_number))
+COOKIE_FILE = f"reddit_cookies{str(user_number)}.json"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) "
@@ -157,15 +162,15 @@ class Redditbot:
 
         # Try restoring saved cookies first
         if self._load_cookies():
-            print("[bot] Found saved cookies — attempting session restore...")
+            print(f"[bot{user_number}] Found saved cookies — attempting session restore...")
             self._page.goto("https://www.reddit.com", wait_until="commit")
             self._human_delay(1, 2)
             # self._page.reload(wait_until="domcontentloaded")
             self._human_delay(2, 3)
             if self._is_logged_in():
-                print("[bot] Session restored. No login needed.")
+                print(f"[bot{user_number}] Session restored. No login needed.")
                 return
-            print("[bot] Cookies expired. Logging in fresh...")
+            print(f"[bot{user_number}] Cookies expired. Logging in fresh...")
 
         self._login()
 
@@ -224,7 +229,7 @@ class Redditbot:
     def _save_cookies(self):
         with open(self.cookie_file, "w") as f:
             json.dump(self._context.cookies(), f, indent=2)
-        print(f"[bot] Cookies saved to '{self.cookie_file}'. Future runs will skip login.")
+        print(f"[bot{user_number}] Cookies saved to '{self.cookie_file}'. Future runs will skip login.")
 
     def _load_cookies(self) -> bool:
         if not os.path.exists(self.cookie_file):
@@ -239,8 +244,8 @@ class Redditbot:
         Run with headless=False (the default) so you can solve any CAPTCHA.
         Cookies are saved automatically — you only ever need to do this once.
         """
-        print(f"[bot] Logging in as '{self.username}'...")
-        print("[bot] If a CAPTCHA appears, solve it in the browser window.")
+        print(f"[bot{user_number}] Logging in as '{self.username}'...")
+        print(f"[bot{user_number}] If a CAPTCHA appears, solve it in the browser window.")
         page = self._page
 
         page.goto("https://www.reddit.com/login/", wait_until="commit")
@@ -265,7 +270,7 @@ class Redditbot:
 
         # Log what's actually in the fields so we can confirm they were filled
         filled_user = username_input.input_value()
-        print(f"[bot] Username field contains: '{filled_user}'")
+        print(f"[bot{user_number}] Username field contains: '{filled_user}'")
 
         # Try multiple selectors since Reddit's login button varies
         for selector in [
@@ -292,14 +297,14 @@ class Redditbot:
         if "login" in page.url:
             raise RuntimeError("Login failed — check your username and password.")
 
-        print("[bot] Logged in successfully.")
+        print(f"[bot{user_number}] Logged in successfully.")
         self._save_cookies()
 
     # ── bot actions ─────────────────────────────
 
     def post_comment(self, post_permalink: str, comment_text: str) -> bool:
         page = self._page
-        # print(f"[bot] Navigating to: {post_permalink}")
+        # print(f"[bot{user_number}] Navigating to: {post_permalink}")
         self._goto(post_permalink)
         self._human_delay(2, 3)
 
@@ -339,15 +344,15 @@ class Redditbot:
                 submit_btn.click()
             else:
                 # If Reddit is being stubborn, force the click event
-                print("[bot] Button disabled, forcing click event...")
+                print(f"[bot{user_number}] Button disabled, forcing click event...")
                 submit_btn.dispatch_event("click")
 
-            print("[bot] commented",comment_text[:20])
+            print(f"[bot{user_number}] commented",comment_text[:20]+"...")
             self._human_delay(5, 7)
             return True
 
         except Exception as e:
-            print(f"[bot] Interaction failed: {e}")
+            print(f"[bot{user_number}] Interaction failed: {e}")
             page.screenshot(path="reddit_fail.png")
             return False
 
@@ -363,14 +368,14 @@ class Redditbot:
     def submit_text_post(self, subreddit_name: str, title: str, body: str) -> bool:
         page = self._page
         submit_url = f"https://www.reddit.com/r/{subreddit_name}/submit"
-        print(f"[bot] Navigating to: {submit_url}")
+        print(f"[bot{user_number}] Navigating to: {submit_url}")
         self._goto(submit_url)
         self._human_delay(2, 3)
 
         try:
             # 1. Title Field
             # Tracker saw: textarea#innerTextArea inside FACEPLATE-TEXTAREA-INPUT
-            print("[bot] Entering title...")
+            print(f"[bot{user_number}] Entering title...")
             title_container = page.locator('faceplate-textarea-input[name="title"]').first
             title_container.click() # Focus the container
             page.keyboard.type(title, delay=random.randint(40, 80))
@@ -378,7 +383,7 @@ class Redditbot:
 
             # 2. Handle the Post Body (Rich Text Editor)
             # Just like the comment box, this is often inside a Shadow DOM
-            print("[bot] Focusing post body...")
+            print(f"[bot{user_number}] Focusing post body...")
             # We look for the editor container or the role="textbox" inside shreddit-composer
             editor_selector = 'shreddit-composer div[role="textbox"]'
             editor = page.locator(editor_selector).first
@@ -388,13 +393,13 @@ class Redditbot:
             self._human_delay(1, 2)
 
             # Use keyboard.type to ensure Lexical catches the input and enables the "Post" button
-            print("[bot] Typing body content...")
+            print(f"[bot{user_number}] Typing body content...")
             page.keyboard.type(body, delay=random.randint(30, 70))
             self._human_delay(2, 3)
 
             # 3. The Submit Button
             # Tracker saw: R-POST-FORM-SUBMIT-BUTTON
-            print("[bot] Attempting to click Post...")
+            print(f"[bot{user_number}] Attempting to click Post...")
             
             # Target the custom component directly
             submit_host = page.locator('r-post-form-submit-button').first
@@ -421,15 +426,15 @@ class Redditbot:
                     }
                 }""")
                 
-                print("[bot] Post submission triggered.")
+                print(f"[bot{user_number}] Post submission triggered.")
                 self._human_delay(5, 8)
                 return True
             else:
-                print("[bot] Could not find r-post-form-submit-button")
+                print(f"[bot{user_number}] Could not find r-post-form-submit-button")
                 return False
 
         except Exception as e:
-            print(f"[bot] Failed to create post: {e}")
+            print(f"[bot{user_number}] Failed to create post: {e}")
             page.screenshot(path="post_error.png")
             return False
 
@@ -438,46 +443,47 @@ class Redditbot:
     def get_random_home_post(self):
         page = self._page
         
-        while True:  # Outer loop: keep trying until we successfully return post_data
-            print("[bot] Navigating to home page...")
+        while True:
+            print(f"[bot{user_number}] Navigating to home page...")
             
-            # 1. Navigation Loop (Internal)
+            # 1. Navigation Loop
             while True:
                 try:
                     target_url = "https://www.reddit.com/rising/?feed=home&feedViewType=compactView"
                     response = self._page.goto(target_url, wait_until="domcontentloaded", timeout=30000)
-                    
                     if response and response.ok:
                         break
-                    else:
-                        print(f"[bot] Status {response.status if response else 'None'}. Retrying...")
+                    print(f"[bot{user_number}] Status {response.status if response else 'None'}. Retrying...")
                 except Exception as e:
-                    print(f"[bot] Navigation failed ({type(e).__name__}). Retrying in 5s...")
+                    print(f"[bot{user_number}] Navigation failed ({type(e).__name__}). Retrying in 5s...")
                     self._human_delay(4, 6)
             
             self._human_delay(2, 3)
 
-            # 2. Load more posts
-            for _ in range(3):
-                page.mouse.wheel(0, 2000)
-                self._human_delay(0.4, 0.6)
-
             try:
-                # 3. Load seen URLs
+                # 2. Stability Check: Wait for at least one post to render before scrolling
+                # This prevents "Execution context was destroyed" errors
+                page.wait_for_selector('shreddit-post', state='attached', timeout=15000)
+
+                # 3. Load more posts by scrolling
+                for _ in range(3):
+                    page.mouse.wheel(0, 4000)
+                    self._human_delay(0.4, 0.6)
+
+                # 4. Filter seen URLs with UTF-8 encoding
                 seen_urls = set()
                 try:
-                    with open("log.txt", "r") as f:
+                    with open("log.txt", "r", encoding="utf-8") as f:
                         seen_urls = {line.strip() for line in f if line.strip()}
                 except FileNotFoundError:
                     pass
 
                 post_locator = page.locator('shreddit-post:not([ad-id])')
                 post_count = post_locator.count()
-                print(f"[post count] total posts loaded: {post_count}")
 
                 if post_count == 0:
-                    print("[bot] No posts found on page. Restarting...")
-                    continue # Back to the start of the 'while True'
+                    print(f"[bot{user_number}] No posts found. Refreshing...")
+                    continue 
 
                 indices = list(range(post_count))
                 random.shuffle(indices)
@@ -492,9 +498,9 @@ class Redditbot:
                     
                     p_type = temp_post.get_attribute('post-type')
                     domain = temp_post.get_attribute('domain') or ""
-                    has_video_player = temp_post.locator('shreddit-player-2, video, .video-player-wrapper').count() > 0
+                    has_video = temp_post.locator('shreddit-player-2, video, .video-player-wrapper').count() > 0
                     
-                    if p_type == "video" or "v.redd.it" in domain or has_video_player:
+                    if p_type == "video" or "v.redd.it" in domain or has_video:
                         continue
 
                     temp_permalink = temp_post.get_attribute('permalink')
@@ -509,13 +515,13 @@ class Redditbot:
                         break
                 
                 if not target_post:
-                    print("[bot] No new/valid posts in this batch. Refreshing...")
-                    continue # Restart the search
+                    print(f"[bot{user_number}] No new posts in this batch. Refreshing...")
+                    continue 
 
-                # 4. Success! Proceed to extraction
-                print(f"[bot] Selected: {post_title} from {subreddit_name}")
+                # 5. Success! Navigate to the specific post
+                print(f"[bot{user_number}] Selected: {post_title} ({subreddit_name})")
                 self._goto(permalink)
-                self._human_delay(1, 2)
+                self._human_delay(2, 4) # Time for body content to render
 
                 post_data = {
                     "title": post_title,
@@ -527,32 +533,44 @@ class Redditbot:
                     "is_gallery": "/gallery/" in permalink
                 }
 
-                # Extraction logic
-                content_container = page.locator('div[id$="-post-rtjson-content"]').first
-                if content_container.count() > 0:
-                    paragraphs = content_container.locator('p').all()
-                    text_parts = [p.inner_text().strip() for p in paragraphs]
-                    post_data["text"] = "\n".join([t for t in text_parts if t and "sh.reddit.com" not in t])
+                # --- IMPROVED EXTRACTION LOGIC ---
+                # Focus on the main post's text-body slot to avoid community status tooltips
+                main_post = page.locator('shreddit-post').first
+                
+                # Primary target: The div with the schema property
+                body_locator = main_post.locator('[slot="text-body"] div[property="schema:articleBody"]').first
+                
+                # Fallback: Specific post ID prefix 't3_'
+                if body_locator.count() == 0:
+                    body_locator = main_post.locator('div[id^="t3_"][id$="-post-rtjson-content"]').first
 
-                img_locator = page.locator('shreddit-post img[src^="https://preview.redd.it"], figure img').first
+                if body_locator.count() > 0:
+                    paragraphs = body_locator.locator('p').all()
+                    text_parts = [p.inner_text().strip() for p in paragraphs if p.inner_text().strip()]
+                    
+                    # Remove any noise like 'sh.reddit.com' links
+                    post_data["text"] = "\n\n".join([t for t in text_parts if "sh.reddit.com" not in t])
+                    
+                    preview = (post_data["text"][:75] + '...') if len(post_data["text"]) > 75 else post_data["text"]
+                    print(f"[bot{user_number}] selected text: {preview}")
+                else:
+                    print(f"[bot{user_number}] Could not find post body text.")
+                # --------------------------------------------
+
+                # Handle Image URLs
+                img_locator = main_post.locator('img[src^="https://preview.redd.it"], figure img').first
                 if img_locator.count() > 0:
-                    img_url = img_locator.get_attribute('src')
-                    post_data["image_url"] = img_url
-                    try:
-                        res = requests.get(img_url, stream=True, timeout=10)
-                        if res.status_code == 200:
-                            with open("post_image.jpg", "wb") as f:
-                                for chunk in res.iter_content(1024): f.write(chunk)
-                            post_data["image_path"] = "post_image.jpg"
-                    except:
-                        pass
+                    post_data["image_url"] = img_locator.get_attribute('src')
 
-                return post_data # The only way out of the loop
+                return post_data
 
             except Exception as e:
-                print(f"[bot] Error during process: {e}. Retrying from scratch...")
+                # Catches "Execution context destroyed" and other DOM-related crashes
+                print(f"[bot{user_number}] Error during process: {e}. Retrying...")
                 self._human_delay(2, 4)
-                # Loop continues...
+
+
+
 
 
 # def generate_reddit_comment(api_key, prompt_file, subreddit, title, text, image_path, retries=5):
@@ -615,6 +633,10 @@ def generate_reddit_comment(api_key, prompt_file, system_file, subreddit, title,
 
     # Prepare the formatted prompt
     formatted_prompt = template.format(subreddit=subreddit, title=title, text=text)
+    log_information = """Subreddit: {subreddit}
+Title: {title}
+Text: {text}"""
+    print(log_information.format(subreddit=subreddit, title=title, text=text))
 
     # Groq uses a 'messages' list rather than 'contents'
     if image_url:
@@ -652,15 +674,15 @@ def generate_reddit_comment(api_key, prompt_file, system_file, subreddit, title,
                 # Llama 3.2 11B is the current high-volume vision king on Groq
                 model="meta-llama/llama-4-scout-17b-16e-instruct", 
                 messages=messages,
-                temperature=0.95,
-                max_tokens=150, # Keep it small to prevent rambling
+                temperature=1,
+                max_tokens=1024, # Keep it small to prevent rambling
                 top_p=0.9,
                 stream=False,
                 stop=["\n"] # Hard cut-offs for rambling
             )
             
             comment = completion.choices[0].message.content
-            return comment.lower().strip()
+            return comment.strip()
             
         except Exception as e:
             # Groq returns specific 429 for Rate Limits and 503 for Overload
@@ -691,7 +713,7 @@ if __name__ == "__main__":
         while True:
             post_data = bot.get_random_home_post()
             comment = generate_reddit_comment(
-                api_key=os.getenv("GROQ_API_KEY"),
+                api_key=os.getenv("GROQ_API_KEY"+str(user_number)),
                 prompt_file="prompt.txt",
                 system_file="system.txt",
                 subreddit=post_data['subreddit'],
@@ -702,5 +724,7 @@ if __name__ == "__main__":
             print("[comment]",comment)
             if comment != "":
                 bot.post_comment(post_data['url'], comment)
-                with open("log.txt", "a", encoding="utf-8") as f:
-                    f.write(f"\n{post_data['url']}\n{comment}\n")
+                with open("log.txt", "r+", encoding="utf-8") as f:
+                    old_content = f.read()
+                    f.seek(0)
+                    f.write(f"\n{post_data['url']}\n{comment}\n"+old_content)

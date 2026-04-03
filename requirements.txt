@@ -2,5 +2,5 @@ playwright
 playwright-stealth
 requests
 python-dotenv
-groq
+google-genai
 Pillow
